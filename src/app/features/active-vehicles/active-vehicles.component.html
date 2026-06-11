@@ -1,0 +1,83 @@
+<div class="card">
+  <div class="card__header card__header--row">
+    <div>
+      <h2>Vehículos en el Parqueadero</h2>
+      <p class="card__subtitle">
+        Vehículos que están actualmente estacionados
+        @if (!loading && vehicles.length > 0) {
+          — <strong>{{ vehicles.length }}</strong>
+          {{ vehicles.length === 1 ? 'vehículo' : 'vehículos' }}
+        }
+      </p>
+    </div>
+    <button class="btn btn--outline btn--sm" (click)="refresh()" [disabled]="loading">
+      @if (loading) {
+        <span class="spinner spinner--sm"></span>
+      } @else {
+        ⟳ Actualizar
+      }
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  @if (loading && vehicles.length === 0) {
+    <div class="empty-state">
+      <div class="spinner spinner--large"></div>
+      <p>Cargando vehículos…</p>
+    </div>
+  }
+
+  <!-- Error state -->
+  @if (error && vehicles.length === 0) {
+    <div class="alert alert--error" role="alert">
+      <strong>❌ {{ error.message }}</strong>
+      @if (error.details) {
+        <p>{{ error.details }}</p>
+      }
+      <button class="btn btn--outline btn--sm" (click)="refresh()">Reintentar</button>
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!loading && !error && vehicles.length === 0) {
+    <div class="empty-state">
+      <div class="empty-state__icon">🅿️</div>
+      <p class="empty-state__title">No hay vehículos estacionados</p>
+      <p class="empty-state__desc">El parqueadero está vacío. Registrá un ingreso para verlo aquí.</p>
+    </div>
+  }
+
+  <!-- Table -->
+  @if (vehicles.length > 0) {
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Placa</th>
+            <th>Tipo</th>
+            <th>Ingresó</th>
+            <th>Tiempo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (vehicle of vehicles; track vehicle.id) {
+            <tr>
+              <td>
+                <span class="plate-badge">{{ vehicle.plate }}</span>
+              </td>
+              <td>{{ vehicle.vehicleType }}</td>
+              <td>{{ formatDate(vehicle.entryTime) }}</td>
+              <td class="td--time">{{ calcularTiempoActivo(vehicle.entryTime) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (lastUpdate) {
+      <div class="card__footer">
+        <small>Actualizado automáticamente cada 30 segundos • Última actualización: {{ formatDate(lastUpdate.toISOString()) }}</small>
+      </div>
+    }
+  }
+</div>

@@ -1,0 +1,76 @@
+<div class="card">
+  <div class="card__header">
+    <h2>Registrar Ingreso</h2>
+    <p class="card__subtitle">Ingresá un vehículo al parqueadero</p>
+  </div>
+
+  <!-- Success message -->
+  @if (success) {
+    <div class="alert alert--success" role="alert">
+      <strong>✅ Ingreso registrado</strong>
+      <p>
+        Vehículo <strong>{{ success.plate }}</strong> ({{ success.vehicleType }}) ingresó
+        a las {{ success.entryTime | date:'HH:mm:ss':'America/Bogota' }}
+      </p>
+      <button class="alert__close" (click)="clearSuccess()">✕</button>
+    </div>
+  }
+
+  <!-- Error message -->
+  @if (error) {
+    <div class="alert alert--error" role="alert">
+      <strong>❌ {{ error.message }}</strong>
+      @if (error.details) {
+        <p>{{ error.details }}</p>
+      }
+      <button class="alert__close" (click)="error = null">✕</button>
+    </div>
+  }
+
+  <form (ngSubmit)="onSubmit()" class="form" #entryForm="ngForm">
+    <div class="form__group">
+      <label for="plate" class="form__label">Placa</label>
+      <input
+        id="plate"
+        name="plate"
+        type="text"
+        class="form__input"
+        [(ngModel)]="plate"
+        placeholder="Ej: ABC123"
+        maxlength="10"
+        style="text-transform: uppercase"
+        required
+        autocomplete="off"
+      />
+      <small class="form__hint">Máx. 10 caracteres alfanuméricos. Se convertirá a mayúsculas automáticamente.</small>
+    </div>
+
+    <div class="form__group">
+      <label for="vehicleType" class="form__label">Tipo de vehículo</label>
+      <select
+        id="vehicleType"
+        name="vehicleType"
+        class="form__select"
+        [(ngModel)]="vehicleType"
+        required
+      >
+        @for (type of vehicleTypes; track type) {
+          <option [value]="type">{{ type }}</option>
+        }
+      </select>
+    </div>
+
+    <button
+      type="submit"
+      class="btn btn--primary"
+      [disabled]="loading"
+    >
+      @if (loading) {
+        <span class="spinner"></span>
+        Registrando…
+      } @else {
+        Registrar Ingreso
+      }
+    </button>
+  </form>
+</div>
