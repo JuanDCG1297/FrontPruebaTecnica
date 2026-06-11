@@ -216,10 +216,9 @@ ng serve --open   # Iniciar y abrir navegador automáticamente
 
 ---
 
-## 📝 Notas para el Evaluador
+## 📝 Notas
 
 - **El proyecto usa Angular 19 con standalone components** — no hay `@NgModule` en ninguna parte
 - **Lazy loading** en las 3 rutas principales — los bundles se cargan bajo demanda
 - **Validación dual**: validación cliente-side (rápida) + validación backend (FluentValidation)
-- **Todos los comentarios en el código están en español** y pensados para que entiendas QUÉ hace cada parte y POR QUÉ
 - **El backend debe estar corriendo** para que la app funcione. Si no, verás errores de conexión con mensajes descriptivos
