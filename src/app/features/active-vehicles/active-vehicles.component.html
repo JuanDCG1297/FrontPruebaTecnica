@@ -1,61 +1,87 @@
-<div class="card">
-  <div class="card__header card__header--row">
-    <div>
-      <h2>Vehículos en el Parqueadero</h2>
-      <p class="card__subtitle">
-        Vehículos que están actualmente estacionados
-        @if (!loading && vehicles.length > 0) {
-          — <strong>{{ vehicles.length }}</strong>
-          {{ vehicles.length === 1 ? 'vehículo' : 'vehículos' }}
-        }
-      </p>
-    </div>
-    <button class="btn btn--outline btn--sm" (click)="refresh()" [disabled]="loading">
+<!--
+  ======================================================================
+  ACTIVE VEHICLES — Template HTML
+  ======================================================================
+  4 estados:
+    1. Cargando → spinner
+    2. Error → alerta roja
+    3. Vacío → empty-state
+    4. Con datos → tabla
+
+  Clases BEM del design system:
+    • .card, .card__header, .card__footer → contenedores
+    • .table-responsive, .table → tabla
+    • .td--time → números monoespaciados en celdas de tiempo
+    • .plate-badge → placa estilizada
+    • .empty-state, .empty-state__icon, .empty-state__title → estado vacío
+    • .spinner, .spinner--large → indicador de carga
+    • .alert, .alert--success, .alert--error → alertas
+    • .btn, .btn--outline, .btn--sm → botones
+
+  Clases específicas del componente (definidas en active-vehicles.component.css):
+    • .section-header → encabezado con título + acciones
+    • .type-badge, .type-car, .type-moto → badges de tipo de vehículo
+-->
+
+<!-- ── ENCABEZADO ── -->
+<div class="card__header card__header--row section-header">
+  <h2>Vehículos Activos</h2>
+  <div class="header-actions">
+    <small class="refresh-badge">Auto-refresh cada 30s</small>
+    <button
+      type="button"
+      class="btn btn--outline btn--sm"
+      (click)="refresh()"
+      [disabled]="cooldown || loading"
+    >
       @if (loading) {
         <span class="spinner spinner--sm"></span>
       } @else {
-        ⟳ Actualizar
+        ↻
       }
+      {{ cooldown ? 'Esperá...' : 'Recargar' }}
     </button>
   </div>
+</div>
 
-  <!-- Loading state -->
-  @if (loading && vehicles.length === 0) {
-    <div class="empty-state">
-      <div class="spinner spinner--large"></div>
-      <p>Cargando vehículos…</p>
-    </div>
-  }
+<!-- ── ERROR ── -->
+@if (error) {
+  <div class="alert alert--error">
+    <strong>{{ error.message }}</strong>
+    @if (error.details) {
+      <p>{{ error.details }}</p>
+    }
+    <button class="alert__close" (click)="error = null">&times;</button>
+  </div>
+}
 
-  <!-- Error state -->
-  @if (error && vehicles.length === 0) {
-    <div class="alert alert--error" role="alert">
-      <strong>❌ {{ error.message }}</strong>
-      @if (error.details) {
-        <p>{{ error.details }}</p>
-      }
-      <button class="btn btn--outline btn--sm" (click)="refresh()">Reintentar</button>
-    </div>
-  }
+<!-- ── CARGA INICIAL ── -->
+@if (loading && vehicles.length === 0) {
+  <div class="empty-state">
+    <div class="spinner spinner--large"></div>
+    <p class="empty-state__desc" style="margin-top: 16px;">Cargando vehículos activos...</p>
+  </div>
+}
 
-  <!-- Empty state -->
-  @if (!loading && !error && vehicles.length === 0) {
-    <div class="empty-state">
-      <div class="empty-state__icon">🅿️</div>
-      <p class="empty-state__title">No hay vehículos estacionados</p>
-      <p class="empty-state__desc">El parqueadero está vacío. Registrá un ingreso para verlo aquí.</p>
-    </div>
-  }
+<!-- ── LISTA VACÍA ── -->
+@if (!loading && !error && vehicles.length === 0) {
+  <div class="empty-state">
+    <div class="empty-state__icon">🅿️</div>
+    <h3 class="empty-state__title">No hay vehículos estacionados</h3>
+    <p class="empty-state__desc">No se encontraron vehículos activos en este momento.</p>
+  </div>
+}
 
-  <!-- Table -->
-  @if (vehicles.length > 0) {
+<!-- ── TABLA DE VEHÍCULOS ── -->
+@if (vehicles.length > 0) {
+  <div class="card">
     <div class="table-responsive">
       <table class="table">
         <thead>
           <tr>
             <th>Placa</th>
             <th>Tipo</th>
-            <th>Ingresó</th>
+            <th>Ingreso</th>
             <th>Tiempo</th>
           </tr>
         </thead>
@@ -65,19 +91,30 @@
               <td>
                 <span class="plate-badge">{{ vehicle.plate }}</span>
               </td>
-              <td>{{ vehicle.vehicleType }}</td>
-              <td>{{ formatDate(vehicle.entryTime) }}</td>
-              <td class="td--time">{{ calcularTiempoActivo(vehicle.entryTime) }}</td>
+              <td>
+                <span
+                  class="type-badge"
+                  [class.type-car]="vehicle.vehicleType === 'Carro'"
+                  [class.type-moto]="vehicle.vehicleType === 'Moto'"
+                >
+                  {{ vehicle.vehicleType }}
+                </span>
+              </td>
+              <td>
+                {{ vehicle.entryTime | date : "medium" : "America/Bogota" }}
+              </td>
+              <td class="td--time">
+                @let diff = getTimeDiff(vehicle.entryTime);
+                {{ diff.hours }}h {{ diff.minutes }}m
+              </td>
             </tr>
           }
         </tbody>
       </table>
     </div>
 
-    @if (lastUpdate) {
-      <div class="card__footer">
-        <small>Actualizado automáticamente cada 30 segundos • Última actualización: {{ formatDate(lastUpdate.toISOString()) }}</small>
-      </div>
-    }
-  }
-</div>
+    <div class="card__footer">
+      Total: <strong>{{ vehicles.length }}</strong> vehículo{{ vehicles.length !== 1 ? 's' : '' }} activo{{ vehicles.length !== 1 ? 's' : '' }}
+    </div>
+  </div>
+}

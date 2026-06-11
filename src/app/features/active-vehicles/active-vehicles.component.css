@@ -1,3 +1,45 @@
+/* ═══════════════════════════════════════════════════════════════
+   Active Vehicles — Estilos específicos del componente
+   ═══════════════════════════════════════════════════════════════ */
+
 :host {
   display: block;
+}
+
+/* ─────────── Section Header ─────────── */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.refresh-badge {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ─────────── Type Badges ─────────── */
+.type-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.type-car {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.type-moto {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
 }

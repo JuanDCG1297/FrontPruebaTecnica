@@ -1,13 +1,33 @@
+<!--
+  ======================================================================
+  APP COMPONENT — Template HTML (Layout Shell)
+  ======================================================================
+  Layout principal: sidebar izquierdo + contenido vía <router-outlet>.
+
+  El sidebar siempre está visible. El contenido cambia según la ruta.
+  Cuando navegás, solo se re-renderiza el contenido, no el sidebar.
+  Eso es porque <router-outlet /> está FUERA del sidebar.
+-->
+
 <div class="app-shell">
-  <!-- Sidebar -->
+  <!-- ────────────────────────────────────────────────────────────── -->
+  <!-- SIDEBAR                                                        -->
+  <!-- ────────────────────────────────────────────────────────────── -->
   <aside class="sidebar">
+    <!-- Marca -->
     <div class="sidebar__brand">
       <h1 class="sidebar__title">Parqueadero</h1>
       <p class="sidebar__subtitle">Sistema de Gestión</p>
     </div>
 
+    <!-- Navegación -->
     <nav class="sidebar__nav">
       @for (item of navItems; track item.path) {
+        <!--
+          routerLink → navegación SPA sin recargar la página
+          routerLinkActive → agrega clase CSS cuando la ruta coincide
+          routerLinkActiveOptions → exact:false (coincidencia parcial)
+        -->
         <a
           class="nav-link"
           [routerLink]="item.path"
@@ -20,13 +40,20 @@
       }
     </nav>
 
+    <!-- Footer -->
     <div class="sidebar__footer">
-      <small>Prueba Técnica — Semi Senior</small>
+      <small>Prueba Técnica</small>
     </div>
   </aside>
 
-  <!-- Main content -->
+  <!-- ────────────────────────────────────────────────────────────── -->
+  <!-- MAIN CONTENT                                                   -->
+  <!-- ────────────────────────────────────────────────────────────── -->
   <main class="main-content">
+    <!--
+      router-outlet renderiza el componente de la ruta activa.
+      Ej: /ingreso → VehicleEntryComponent, /salida → VehicleExitComponent
+    -->
     <router-outlet />
   </main>
 </div>

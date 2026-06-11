@@ -1,145 +1,183 @@
-<div class="card">
-  <div class="card__header">
-    <h2>Registrar Salida</h2>
-    <p class="card__subtitle">Buscá un vehículo por placa y registrá su salida</p>
+<!--
+  ======================================================================
+  VEHICLE EXIT — Template HTML (Flujo 2 pasos)
+  ======================================================================
+  Estados manejados por `step`:
+    • 'search'  → formulario de búsqueda de placa
+    • 'confirm' → muestra info del vehículo + botón de confirmación
+    • 'result'  → muestra resumen de la salida
+
+  Clases BEM del design system:
+    • .card → contenedores
+    • .form, .form__group, .form__input, .form__hint, .form__actions → formularios
+    • .btn, .btn--primary, .btn--outline → botones
+    • .alert, .alert--error, .alert--warn, .alert--success → alertas
+    • .vehicle-info, .vehicle-info__row, .vehicle-info__label, .vehicle-info__value → info vehículo
+    • .vehicle-info__value--plate, .vehicle-info__value--fee → variantes
+    • .vehicle-info__row--total, .vehicle-info__row--fee → variantes de fila
+-->
+
+<h2>Registrar Salida</h2>
+
+<!-- ── ERROR (visible en cualquier paso) ── -->
+@if (error) {
+  <div class="alert alert--error">
+    <strong>{{ error.message }}</strong>
+    @if (error.details) {
+      <p>{{ error.details }}</p>
+    }
+    <button class="alert__close" (click)="error = null">&times;</button>
   </div>
+}
 
-  <!-- ════════════════ STEP: SEARCH ════════════════ -->
-  @if (step === 'search' || step === 'error') {
-    <form (ngSubmit)="onSearch()" class="form">
-      <div class="form__group">
-        <label for="exit-plate" class="form__label">Placa del vehículo</label>
-        <input
-          id="exit-plate"
-          name="plate"
-          type="text"
-          class="form__input"
-          [(ngModel)]="plate"
-          placeholder="Ej: ABC123"
-          maxlength="10"
-          style="text-transform: uppercase"
-          required
-          autocomplete="off"
-        />
-      </div>
+<!-- ================================================================ -->
+<!-- PASO 1: BUSCAR VEHÍCULO                                           -->
+<!-- ================================================================ -->
+@if (step === 'search') {
+  <form #searchForm="ngForm" (ngSubmit)="searchVehicle()" class="card form">
+    <div class="form__group">
+      <label class="form__label" for="plate">Placa del vehículo</label>
+      <input
+        type="text"
+        id="plate"
+        name="plate"
+        [(ngModel)]="plate"
+        placeholder="Ej: ABC123"
+        maxlength="10"
+        class="form__input"
+        autocomplete="off"
+        required
+      />
+      <small class="form__hint">Ingresá la placa para buscar el vehículo estacionado</small>
+    </div>
 
-      @if (step === 'error' && errorStep === 'search') {
-        <div class="alert alert--error" role="alert">
-          <strong>❌ {{ error?.message }}</strong>
-          @if (error?.details) {
-            <p>{{ error?.details }}</p>
-          }
-        </div>
+    <button type="submit" class="btn btn--primary" [disabled]="loading">
+      @if (loading) {
+        <span class="spinner"></span>
+        Buscando...
+      } @else {
+        Buscar Vehículo
       }
+    </button>
+  </form>
+}
 
+<!-- ================================================================ -->
+<!-- PASO 2: CONFIRMAR SALIDA                                         -->
+<!-- ================================================================ -->
+@if (step === 'confirm' && vehicle) {
+  <div class="card">
+    <div class="card__header">
+      <h2>Confirmar Salida</h2>
+    </div>
+
+    <div class="vehicle-info">
+      <div class="vehicle-info__row">
+        <span class="vehicle-info__label">Placa</span>
+        <span class="vehicle-info__value vehicle-info__value--plate">{{ vehicle.plate }}</span>
+      </div>
+      <div class="vehicle-info__row">
+        <span class="vehicle-info__label">Tipo</span>
+        <span class="vehicle-info__value">{{ vehicle.vehicleType }}</span>
+      </div>
+      <div class="vehicle-info__row">
+        <span class="vehicle-info__label">Ingresó</span>
+        <span class="vehicle-info__value">
+          {{ vehicle.entryTime | date : "medium" : "America/Bogota" }}
+        </span>
+      </div>
+      <div class="vehicle-info__row vehicle-info__row--total">
+        <span class="vehicle-info__label">Tiempo estacionado</span>
+        <span class="vehicle-info__value">
+          @let diff = getTimeDiff(vehicle.entryTime);
+          {{ diff.hours }}h {{ diff.minutes }}m
+        </span>
+      </div>
+    </div>
+
+    <div class="form__actions">
+      <button type="button" class="btn btn--outline" (click)="goBack()">
+        ← Volver
+      </button>
       <button
-        type="submit"
+        type="button"
         class="btn btn--primary"
+        (click)="confirmExit()"
         [disabled]="loading"
       >
         @if (loading) {
           <span class="spinner"></span>
-          Buscando…
+          Procesando...
         } @else {
-          Buscar Vehículo
+          Registrar Salida
         }
       </button>
-    </form>
-  }
+    </div>
+  </div>
+}
 
-  <!-- ════════════════ STEP: CONFIRM ════════════════ -->
-  @if (step === 'confirm' && vehicleFound) {
-    <div class="vehicle-info">
+<!-- ================================================================ -->
+<!-- PASO 3: RESULTADO                                                -->
+<!-- ================================================================ -->
+@if (step === 'result' && result) {
+  <div class="card">
+    <div class="card__header">
+      <h2>Salida Registrada</h2>
+    </div>
+
+    <div class="vehicle-info vehicle-info--result">
       <div class="vehicle-info__row">
         <span class="vehicle-info__label">Placa</span>
-        <span class="vehicle-info__value vehicle-info__value--plate">{{ vehicleFound.plate }}</span>
+        <span class="vehicle-info__value vehicle-info__value--plate">{{ result.plate }}</span>
       </div>
       <div class="vehicle-info__row">
         <span class="vehicle-info__label">Tipo</span>
-        <span class="vehicle-info__value">{{ vehicleFound.vehicleType }}</span>
+        <span class="vehicle-info__value">{{ result.vehicleType }}</span>
       </div>
       <div class="vehicle-info__row">
-        <span class="vehicle-info__label">Ingresó</span>
-        <span class="vehicle-info__value">{{ vehicleFound.entryTime | date:'dd/MM/yyyy HH:mm:ss':'America/Bogota' }}</span>
+        <span class="vehicle-info__label">Ingreso</span>
+        <span class="vehicle-info__value">
+          {{ result.entryTime | date : "short" : "America/Bogota" }}
+        </span>
+      </div>
+      <div class="vehicle-info__row">
+        <span class="vehicle-info__label">Salida</span>
+        <span class="vehicle-info__value">
+          {{ result.exitTime | date : "short" : "America/Bogota" }}
+        </span>
+      </div>
+      <div class="vehicle-info__row vehicle-info__row--total">
+        <span class="vehicle-info__label">Tiempo total</span>
+        <span class="vehicle-info__value">{{ result.totalMinutes }} minutos</span>
+      </div>
+      <div class="vehicle-info__row vehicle-info__row--fee">
+        <span class="vehicle-info__label">Tarifa</span>
+        <span class="vehicle-info__value vehicle-info__value--fee">
+          ${{ result.fee | number }} COP
+        </span>
       </div>
     </div>
 
-    <div class="form__actions">
-      <button class="btn btn--danger" (click)="onConfirmExit()" [disabled]="loading">
-        @if (loading) {
-          <span class="spinner"></span>
-          Registrando…
-        } @else {
-          Confirmar Salida
-        }
-      </button>
-      <button class="btn btn--outline" (click)="onReset()">Cancelar</button>
-    </div>
-  }
-
-  <!-- ════════════════ STEP: RESULT ════════════════ -->
-  @if (step === 'result') {
-    @if (exitResult) {
+    <!-- Estado del email -->
+    @if (!result.emailSent) {
+      <div class="alert alert--warn">
+        <strong>No se pudo enviar el correo de notificación.</strong>
+        <p>
+          La placa {{ result.plate }} ya fue registrada como salida,
+          pero el sistema de correos no respondió. Comunicate con
+          soporte técnico si necesitás el comprobante.
+        </p>
+      </div>
+    } @else {
       <div class="alert alert--success">
-        <strong>✅ Salida registrada</strong>
+        <p>Correo de notificación enviado correctamente.</p>
       </div>
-
-      <div class="vehicle-info vehicle-info--result">
-        <div class="vehicle-info__row">
-          <span class="vehicle-info__label">Placa</span>
-          <span class="vehicle-info__value vehicle-info__value--plate">{{ exitResult.plate }}</span>
-        </div>
-        <div class="vehicle-info__row">
-          <span class="vehicle-info__label">Tipo</span>
-          <span class="vehicle-info__value">{{ exitResult.vehicleType }}</span>
-        </div>
-        <div class="vehicle-info__row">
-          <span class="vehicle-info__label">Ingresó</span>
-          <span class="vehicle-info__value">{{ exitResult.entryTime | date:'dd/MM/yyyy HH:mm:ss':'America/Bogota' }}</span>
-        </div>
-        <div class="vehicle-info__row">
-          <span class="vehicle-info__label">Salió</span>
-          <span class="vehicle-info__value">{{ exitResult.exitTime | date:'dd/MM/yyyy HH:mm:ss':'America/Bogota' }}</span>
-        </div>
-        <div class="vehicle-info__row vehicle-info__row--total">
-          <span class="vehicle-info__label">Tiempo total</span>
-          <span class="vehicle-info__value">{{ exitResult.totalMinutes }} minutos</span>
-        </div>
-        <div class="vehicle-info__row vehicle-info__row--fee">
-          <span class="vehicle-info__label">Valor a pagar</span>
-          <span class="vehicle-info__value vehicle-info__value--fee">{{ formatearMoneda(exitResult.fee) }}</span>
-        </div>
-        <div class="vehicle-info__row">
-          <span class="vehicle-info__label">Notificación email</span>
-          <span class="vehicle-info__value" [class.badge--success]="exitResult.emailSent" [class.badge--warn]="!exitResult.emailSent">
-            @if (exitResult.emailSent) {
-              Enviada ✅
-            } @else {
-              No enviada ⚠️
-            }
-          </span>
-        </div>
-
-        @if (!exitResult.emailSent) {
-          <div class="alert alert--warn">
-            <strong>⚠️ Notificación por correo no disponible</strong>
-            <p>La salida se registró correctamente, pero el servicio de notificaciones está temporalmente fuera de servicio. Si necesitás comprobante, comunicate con soporte.</p>
-          </div>
-        }
-      </div>
-
-      @if (error && errorStep === 'exit') {
-        <div class="alert alert--error">
-          <strong>❌ {{ error.message }}</strong>
-          @if (error.details) {
-            <p>{{ error.details }}</p>
-          }
-        </div>
-      }
     }
 
     <div class="form__actions">
-      <button class="btn btn--primary" (click)="onReset()">Registrar otra salida</button>
+      <button type="button" class="btn btn--primary" (click)="reset()">
+        Registrar otra salida
+      </button>
     </div>
-  }
-</div>
+  </div>
+}

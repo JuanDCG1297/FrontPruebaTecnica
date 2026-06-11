@@ -1,76 +1,88 @@
-<div class="card">
-  <div class="card__header">
-    <h2>Registrar Ingreso</h2>
-    <p class="card__subtitle">Ingresá un vehículo al parqueadero</p>
+<!--
+  ======================================================================
+  VEHICLE ENTRY — Template HTML
+  ======================================================================
+  Formulario de ingreso con 3 estados:
+    1. Formulario vacío (default)
+    2. Alerta de error (validación o API falló)
+    3. Alerta de éxito (ingreso registrado)
+
+  Clases BEM del design system:
+    • .card → contenedor del formulario
+    • .form, .form__group, .form__input, .form__hint → sistema de formularios
+    • .btn, .btn--primary → botones
+    • .alert, .alert--success, .alert--error → alertas
+    • .spinner → indicador de carga
+-->
+
+<h2>Registrar Ingreso</h2>
+
+<!-- ── ALERTA DE ERROR ── -->
+@if (error) {
+  <div class="alert alert--error">
+    <strong>{{ error.message }}</strong>
+    @if (error.details) {
+      <p>{{ error.details }}</p>
+    }
+    <button class="alert__close" (click)="error = null">&times;</button>
+  </div>
+}
+
+<!-- ── ALERTA DE ÉXITO ── -->
+@if (success) {
+  <div class="alert alert--success">
+    <strong>Ingreso registrado</strong>
+    <p>
+      Placa: <strong>{{ success.plate }}</strong><br />
+      Tipo: {{ success.vehicleType }}<br />
+      Ingreso: {{ success.entryTime | date : "medium" : "America/Bogota" }}
+    </p>
+    <button class="alert__close" (click)="clearSuccess()">&times;</button>
+  </div>
+}
+
+<!-- ── FORMULARIO ── -->
+<form #entryForm="ngForm" (ngSubmit)="onSubmit()" class="card form">
+  <div class="form__group">
+    <label class="form__label" for="plate">Placa</label>
+    <input
+      type="text"
+      id="plate"
+      name="plate"
+      [(ngModel)]="plate"
+      placeholder="Ej: ABC123"
+      maxlength="10"
+      class="form__input"
+      autocomplete="off"
+      required
+    />
+    <small class="form__hint">Solo letras y números, máx. 10 caracteres</small>
   </div>
 
-  <!-- Success message -->
-  @if (success) {
-    <div class="alert alert--success" role="alert">
-      <strong>✅ Ingreso registrado</strong>
-      <p>
-        Vehículo <strong>{{ success.plate }}</strong> ({{ success.vehicleType }}) ingresó
-        a las {{ success.entryTime | date:'HH:mm:ss':'America/Bogota' }}
-      </p>
-      <button class="alert__close" (click)="clearSuccess()">✕</button>
-    </div>
-  }
-
-  <!-- Error message -->
-  @if (error) {
-    <div class="alert alert--error" role="alert">
-      <strong>❌ {{ error.message }}</strong>
-      @if (error.details) {
-        <p>{{ error.details }}</p>
-      }
-      <button class="alert__close" (click)="error = null">✕</button>
-    </div>
-  }
-
-  <form (ngSubmit)="onSubmit()" class="form" #entryForm="ngForm">
-    <div class="form__group">
-      <label for="plate" class="form__label">Placa</label>
-      <input
-        id="plate"
-        name="plate"
-        type="text"
-        class="form__input"
-        [(ngModel)]="plate"
-        placeholder="Ej: ABC123"
-        maxlength="10"
-        style="text-transform: uppercase"
-        required
-        autocomplete="off"
-      />
-      <small class="form__hint">Máx. 10 caracteres alfanuméricos. Se convertirá a mayúsculas automáticamente.</small>
-    </div>
-
-    <div class="form__group">
-      <label for="vehicleType" class="form__label">Tipo de vehículo</label>
-      <select
-        id="vehicleType"
-        name="vehicleType"
-        class="form__select"
-        [(ngModel)]="vehicleType"
-        required
-      >
-        @for (type of vehicleTypes; track type) {
-          <option [value]="type">{{ type }}</option>
-        }
-      </select>
-    </div>
-
-    <button
-      type="submit"
-      class="btn btn--primary"
-      [disabled]="loading"
+  <div class="form__group">
+    <label class="form__label" for="vehicleType">Tipo de vehículo</label>
+    <select
+      id="vehicleType"
+      name="vehicleType"
+      [(ngModel)]="vehicleType"
+      class="form__input"
     >
-      @if (loading) {
-        <span class="spinner"></span>
-        Registrando…
-      } @else {
-        Registrar Ingreso
+      @for (type of vehicleTypes; track type) {
+        <option [value]="type">{{ type }}</option>
       }
-    </button>
-  </form>
-</div>
+    </select>
+  </div>
+
+  <button
+    type="submit"
+    class="btn btn--primary"
+    [disabled]="loading"
+  >
+    @if (loading) {
+      <span class="spinner"></span>
+      Registrando...
+    } @else {
+      Registrar Ingreso
+    }
+  </button>
+</form>

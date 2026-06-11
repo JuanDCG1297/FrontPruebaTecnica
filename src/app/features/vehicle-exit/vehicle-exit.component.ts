@@ -1,14 +1,35 @@
+// ========================================================================
+// VEHICLE EXIT COMPONENT (Registrar Salida)
+// ========================================================================
+// Este componente maneja el flujo de SALIDA de vehículos en DOS pasos:
+//
+//   PASO 1: Buscar vehículo por placa
+//     • Usuario ingresa la placa
+//     • GET /api/Vehicles/GetByPlate?plate=XXX
+//     • Muestra info del vehículo: tipo, hora de ingreso, tiempo transcurrido
+//
+//   PASO 2: Confirmar salida
+//     • Usuario hace clic en "Registrar Salida"
+//     • POST /api/Vehicles/{id}/exit
+//     • Muestra resultado: minutos totales, tarifa, email enviado/no enviado
+//
+// ¿Por qué dos pasos?
+//   1. UX: El usuario VE lo que va a pasar antes de confirmar
+//   2. Técnico: Necesitamos el ID del vehículo (lo obtenemos en paso 1)
+//      para llamar al endpoint de exit (paso 2). El usuario no conoce IDs,
+//      solo conoce la placa.
+//
+// Manejo especial del email:
+//   • Si emailSent === false, mostramos un warning con instrucciones
+//     para que el usuario se comunique con soporte
+//   • Esto es porque la API de email externa puede fallar
+// ========================================================================
+
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { switchMap } from 'rxjs/operators';
 import { VehicleService, ApiError } from '../../core/services/vehicle.service';
-import {
-  VehicleResponse,
-  ExitResponse,
-} from '../../core/models/vehicle.models';
-
-type Step = 'search' | 'confirm' | 'result' | 'error';
+import { VehicleResponse, ExitResponse } from '../../core/models/vehicle.models';
 
 @Component({
   selector: 'app-vehicle-exit',
@@ -18,105 +39,178 @@ type Step = 'search' | 'confirm' | 'result' | 'error';
   styleUrls: ['./vehicle-exit.component.css'],
 })
 export class VehicleExitComponent {
+  // ──────────────────────────────────────────────────────────────────────
+  // Propiedades
+  // ──────────────────────────────────────────────────────────────────────
+
+  // Formulario de búsqueda
   plate = '';
 
-  // Flujo en pasos
-  step: Step = 'search';
+  // Estados
+  step: 'search' | 'confirm' | 'result' = 'search';
   loading = false;
-  vehicleFound: VehicleResponse | null = null;
-  exitResult: ExitResponse | null = null;
   error: ApiError | null = null;
-  errorStep: 'search' | 'exit' = 'search';
+
+  // Datos del vehículo encontrado (paso 1)
+  vehicle: VehicleResponse | null = null;
+
+  // Resultado de la salida (paso 2)
+  result: ExitResponse | null = null;
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Constructor
+  // ──────────────────────────────────────────────────────────────────────
 
   constructor(private readonly vehicleService: VehicleService) {}
 
-  /** Paso 1: Buscar vehículo por placa */
-  onSearch(): void {
+  // ──────────────────────────────────────────────────────────────────────
+  // Métodos
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * searchVehicle(): PASO 1 — Busca el vehículo por placa.
+   *
+   * Validaciones antes de llamar a la API:
+   *   1. Placa requerida (no vacía)
+   *   2. Placa alfanumérica (máx 10 caracteres)
+   *   3. Si el vehículo ya tiene exitTime → ya salió → error
+   *      (esta validación la hacemos del lado del cliente porque
+   *       el backend no diferencia entre activo/inactivo en GetByPlate)
+   *
+   * Después de la llamada exitosa:
+   *   • Avanza al paso 'confirm' donde el usuario revisa y confirma
+   */
+  searchVehicle(): void {
+    // Resetear estados previos
+    this.error = null;
+    this.vehicle = null;
+    this.result = null;
+
+    // ── Validación ──
     const plateClean = this.plate.toUpperCase().trim();
 
     if (!plateClean) {
-      this.showError('search', {
+      this.error = {
         status: 0,
         message: 'Validación',
         details: 'Ingresá una placa para buscar',
-      });
+      };
       return;
     }
 
-    this.resetState();
+    if (!/^[A-Z0-9]{1,10}$/.test(plateClean)) {
+      this.error = {
+        status: 0,
+        message: 'Validación',
+        details: 'La placa solo puede contener letras y números, máx. 10 caracteres',
+      };
+      return;
+    }
+
+    // ── Llamada a la API ──
     this.loading = true;
 
     this.vehicleService.getByPlate(plateClean).subscribe({
       next: (vehicle) => {
+        // ── Validación: vehículo ya salió ──
         if (vehicle.exitTime) {
-          this.showError('search', {
-            status: 0,
-            message: 'Vehículo ya salió',
-            details: `El vehículo ${vehicle.plate} ya registró su salida el ${vehicle.exitTime}.`,
-          });
+          this.error = {
+            status: 409,
+            message: 'El vehículo ya salió',
+            details: `La placa ${vehicle.plate} ya registró su salida.`,
+          };
           this.loading = false;
           return;
         }
 
-        this.vehicleFound = vehicle;
+        // ── Todo bien: pasamos a confirmación ──
+        this.vehicle = vehicle;
         this.step = 'confirm';
         this.loading = false;
       },
       error: (err: ApiError) => {
-        this.showError('search', err);
+        this.error = err;
         this.loading = false;
       },
     });
   }
 
-  /** Paso 2: Confirmar y registrar salida */
-  onConfirmExit(): void {
-    if (!this.vehicleFound) return;
+  /**
+   * confirmExit(): PASO 2 — Confirma la salida del vehículo.
+   *
+   * Llama a POST /api/Vehicles/{id}/exit con el ID del vehículo
+   * que obtuvimos en el paso 1.
+   *
+   * El backend:
+   *   1. Calcula totalMinutes = Math.Ceiling((now - entryTime).TotalMinutes)
+   *   2. Calcula fee = totalMinutes * 50
+   *   3. Guarda exitTime = DateTime.UtcNow
+   *   4. Intenta enviar email (no bloqueante)
+   *   5. Devuelve ExitResponse con emailSent
+   */
+  confirmExit(): void {
+    if (!this.vehicle) return;
 
-    this.error = null;
     this.loading = true;
-    this.step = 'result';
+    this.error = null;
 
-    this.vehicleService.registerExit(this.vehicleFound.id).subscribe({
-      next: (result) => {
-        this.exitResult = result;
+    this.vehicleService.registerExit(this.vehicle.id).subscribe({
+      next: (response) => {
+        this.result = response;
         this.step = 'result';
         this.loading = false;
       },
       error: (err: ApiError) => {
-        this.showError('exit', err);
+        this.error = err;
         this.loading = false;
       },
     });
   }
 
-  /** Volver a empezar */
-  onReset(): void {
-    this.resetState();
+  /**
+   * reset(): Vuelve al paso inicial de búsqueda.
+   *
+   * Se llama cuando el usuario quiere registrar otra salida
+   * después de completar una. Resetea todo el estado del componente.
+   */
+  reset(): void {
     this.plate = '';
-  }
-
-  formatearMoneda(valor: number): string {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(valor);
-  }
-
-  private showError(step: 'search' | 'exit', err: ApiError): void {
-    this.error = err;
-    this.errorStep = step;
-    this.step = 'error';
-  }
-
-  private resetState(): void {
     this.step = 'search';
     this.loading = false;
-    this.vehicleFound = null;
-    this.exitResult = null;
     this.error = null;
-    this.errorStep = 'search';
+    this.vehicle = null;
+    this.result = null;
+  }
+
+  /**
+   * goBack(): Vuelve del paso 2 (confirmación) al paso 1 (búsqueda).
+   *
+   * Permite al usuario corregir la placa sin perder el estado
+   * del formulario de búsqueda.
+   */
+  goBack(): void {
+    this.step = 'search';
+    this.vehicle = null;
+    this.error = null;
+  }
+
+  /**
+   * getTimeDiff(): Calcula la diferencia horaria entre entryTime y ahora.
+   *
+   * Se usa en el paso de confirmación para mostrar al usuario
+   * cuánto tiempo lleva estacionado el vehículo.
+   *
+   * @param entryTime - Fecha/hora ISO de ingreso
+   * @returns Objeto con horas y minutos
+   */
+  getTimeDiff(entryTime: string): { hours: number; minutes: number } {
+    const entry = new Date(entryTime);
+    const now = new Date();
+    const diffMs = now.getTime() - entry.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    return {
+      hours: Math.floor(diffMinutes / 60),
+      minutes: diffMinutes % 60,
+    };
   }
 }
